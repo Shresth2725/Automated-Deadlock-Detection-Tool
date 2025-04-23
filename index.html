@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Automated Deadlock Detection Tool</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+    textarea, input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      font-family: monospace;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #3498db;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    .output {
+      margin-top: 20px;
+      padding: 15px;
+      background: #eafaf1;
+      border-left: 5px solid #27ae60;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    .error {
+      border-left-color: #e74c3c;
+      background: #fdecea;
+      color: #c0392b;
+    }
+    label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Automated Deadlock Detection Tool</h1>
+    <label for="resources">Available Resources (e.g. [3, 3, 2]):</label>
+    <textarea id="resources">[3, 3, 2]</textarea>
+
+    <label for="allocation">Allocation Matrix (e.g. [[0, 1, 0], [2, 0, 0], ...]):</label>
+    <textarea id="allocation">[[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]]</textarea>
+
+    <label for="request">Request Matrix (Processes' current requests):</label>
+    <textarea id="request">[[0, 0, 0], [1, 0, 2], [6, 0, 0], [0, 1, 1], [4, 3, 1]]</textarea>
+
+    <button onclick="detectDeadlock()">Detect Deadlock</button>
+
+    <div class="output" id="output"></div>
+  </div>
+
+  <script>
+    function detectDeadlock() {
+      const output = document.getElementById("output");
+      output.className = "output";
+      try {
+        const resources = JSON.parse(document.getElementById("resources").value);
+        const allocation = JSON.parse(document.getElementById("allocation").value);
+        const request = JSON.parse(document.getElementById("request").value);
+
+        const numProcesses = allocation.length;
+        const numResources = resources.length;
+        const work = [...resources];
+        const finish = Array(numProcesses).fill(false);
+
+        // Calculate available resources
+        for (let j = 0; j < numResources; j++) {
+          for (let i = 0; i < numProcesses; i++) {
+            work[j] -= allocation[i][j];
+          }
+        }
+
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (let i = 0; i < numProcesses; i++) {
+            if (!finish[i] && request[i].every((req, j) => req <= work[j])) {
+              for (let j = 0; j < numResources; j++) {
+                work[j] += allocation[i][j];
+              }
+              finish[i] = true;
+              changed = true;
+            }
+          }
+        }
+
+        const deadlocked = finish.map((f, i) => !f ? i : -1).filter(i => i !== -1);
+
+        if (deadlocked.length === 0) {
+          output.innerHTML = `✅ <strong>No deadlock detected.</strong> All processes can complete.`;
+        } else {
+          output.classList.add("error");
+          output.innerHTML = `❌ <strong>Deadlock detected!</strong><br>Deadlocked Processes: [${deadlocked.join(", ")}]<br><br><strong>Suggested Resolution:</strong><ul>` +
+            deadlocked.map(p => `<li>Terminate or rollback Process ${p} to release resources.</li>`).join("") +
+            `</ul>`;
+        }
+      } catch (err) {
+        output.classList.add("error");
+        output.innerHTML = `⚠️ <strong>Error:</strong> ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
