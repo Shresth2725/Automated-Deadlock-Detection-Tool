@@ -1,133 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Automated Deadlock Detection Tool</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f0f4f8;
-      margin: 0;
-      padding: 20px;
-    }
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-    }
-    .container {
-      max-width: 900px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
-    }
-    textarea, input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 15px;
-      font-family: monospace;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    .output {
-      margin-top: 20px;
-      padding: 15px;
-      background: #eafaf1;
-      border-left: 5px solid #27ae60;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    .error {
-      border-left-color: #e74c3c;
-      background: #fdecea;
-      color: #c0392b;
-    }
-    label {
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Deadlock Checker</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.08);
+        }
+        h1 {
+            text-align: center;
+            color: #34495e;
+        }
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            font-family: monospace;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            margin-top: 5px;
+        }
+        button {
+            background-color: #2ecc71;
+            color: white;
+            padding: 10px 18px;
+            border: none;
+            border-radius: 5px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #27ae60;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            line-height: 1.6;
+        }
+        .success {
+            background: #e8f9f1;
+            border-left: 6px solid #2ecc71;
+            color: #2d7a46;
+        }
+        .error {
+            background: #fdecea;
+            border-left: 6px solid #e74c3c;
+            color: #c0392b;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Automated Deadlock Detection Tool</h1>
-    <label for="resources">Available Resources (e.g. [3, 3, 2]):</label>
+<div class="container">
+    <h1>🕵‍♂ Deadlock Detection Tool</h1>
+    <p>Paste your matrices below and let's see if your system is running smooth... or stuck in a deadlock!</p>
+    <label for="resources">🧮 Available Resources:</label>
     <textarea id="resources">[3, 3, 2]</textarea>
 
-    <label for="allocation">Allocation Matrix (e.g. [[0, 1, 0], [2, 0, 0], ...]):</label>
+    <label for="allocation">📋 Allocation Matrix (What each process already has):</label>
     <textarea id="allocation">[[0, 1, 0], [2, 0, 0], [3, 0, 2], [2, 1, 1], [0, 0, 2]]</textarea>
 
-    <label for="request">Request Matrix (Processes' current requests):</label>
+    <label for="request">🙋 Request Matrix (What each process still needs):</label>
     <textarea id="request">[[0, 0, 0], [1, 0, 2], [6, 0, 0], [0, 1, 1], [4, 3, 1]]</textarea>
 
-    <button onclick="detectDeadlock()">Detect Deadlock</button>
+    <button onclick="runDeadlockCheck()">Check for Deadlock</button>
 
-    <div class="output" id="output"></div>
-  </div>
+    <div id="output" class="result"></div>
+</div>
 
-  <script>
-    function detectDeadlock() {
-      const output = document.getElementById("output");
-      output.className = "output";
-      try {
-        const resources = JSON.parse(document.getElementById("resources").value);
-        const allocation = JSON.parse(document.getElementById("allocation").value);
-        const request = JSON.parse(document.getElementById("request").value);
+<script>
+    function runDeadlockCheck() {
+        const outputDiv = document.getElementById("output");
+        outputDiv.className = "result";
+        outputDiv.textContent = "";
 
-        const numProcesses = allocation.length;
-        const numResources = resources.length;
-        const work = [...resources];
-        const finish = Array(numProcesses).fill(false);
+        try {
+            const available = JSON.parse(document.getElementById("resources").value);
+            const allocated = JSON.parse(document.getElementById("allocation").value);
+            const needed = JSON.parse(document.getElementById("request").value);
 
-        // Calculate available resources
-        for (let j = 0; j < numResources; j++) {
-          for (let i = 0; i < numProcesses; i++) {
-            work[j] -= allocation[i][j];
-          }
-        }
+            const numProcesses = allocated.length;
+            const numResources = available.length;
 
-        let changed = true;
-        while (changed) {
-          changed = false;
-          for (let i = 0; i < numProcesses; i++) {
-            if (!finish[i] && request[i].every((req, j) => req <= work[j])) {
-              for (let j = 0; j < numResources; j++) {
-                work[j] += allocation[i][j];
-              }
-              finish[i] = true;
-              changed = true;
+            let work = [...available];
+            const finished = Array(numProcesses).fill(false);
+            let progressMade = true;
+
+            while (progressMade) {
+                progressMade = false;
+                for (let i = 0; i < numProcesses; i++) {
+                    if (!finished[i]) {
+                        const canProceed = needed[i].every((need, r) => need <= work[r]);
+                        if (canProceed) {
+                            for (let r = 0; r < numResources; r++) {
+                                work[r] += allocated[i][r];
+                            }
+                            finished[i] = true;
+                            progressMade = true;
+                        }
+                    }
+                }
             }
-          }
-        }
 
-        const deadlocked = finish.map((f, i) => !f ? i : -1).filter(i => i !== -1);
+            const stuckProcesses = finished.map((done, i) => !done ? i : null).filter(i => i !== null);
 
-        if (deadlocked.length === 0) {
-          output.innerHTML = `✅ <strong>No deadlock detected.</strong> All processes can complete.`;
-        } else {
-          output.classList.add("error");
-          output.innerHTML = `❌ <strong>Deadlock detected!</strong><br>Deadlocked Processes: [${deadlocked.join(", ")}]<br><br><strong>Suggested Resolution:</strong><ul>` +
-            deadlocked.map(p => `<li>Terminate or rollback Process ${p} to release resources.</li>`).join("") +
-            `</ul>`;
+            if (stuckProcesses.length === 0) {
+                outputDiv.classList.add("success");
+                outputDiv.innerHTML = `✅ No deadlock detected. All processes can finish successfully.`;
+            } else {
+                outputDiv.classList.add("error");
+                outputDiv.innerHTML = `❌ Uh-oh! Deadlock detected.<br />The following processes are stuck: <strong>[${stuckProcesses.join(", ")}]</strong><br /><br />👉 Suggested actions:<ul>${stuckProcesses.map(p => `<li>Terminate or roll back process <strong>${p}</strong></li>`).join("")}</ul>`;
+            }
+
+        } catch (err) {
+            outputDiv.classList.add("error");
+            outputDiv.innerHTML = `😓 Something went wrong: <code>${err.message}</code><br />Please check your input format.`;
         }
-      } catch (err) {
-        output.classList.add("error");
-        output.innerHTML = `⚠️ <strong>Error:</strong> ${err.message}`;
-      }
     }
-  </script>
+</script>
 </body>
 </html>
